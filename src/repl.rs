@@ -1,6 +1,6 @@
 use std::io::{Stdin, Stdout, Write};
 
-use crate::{lexer::Lexer, token::TokenType};
+use crate::{lexer::Lexer, token::Token};
 
 pub fn start(stdin: Stdin, stdout: Stdout) {
     loop {
@@ -17,8 +17,8 @@ pub fn start(stdin: Stdin, stdout: Stdout) {
         loop {
             let tok = l.next_token();
 
-            match tok.token_type {
-                TokenType::Eof => {
+            match tok {
+                Token::Eof => {
                     break;
                 }
                 _ => {

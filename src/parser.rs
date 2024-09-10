@@ -100,6 +100,7 @@ impl<'a> Parser<'a> {
     fn parse_stmt(&mut self) -> Option<Stmt> {
         match self.current_token {
             Token::Let => self.parse_let_stmt(),
+            Token::Return => self.parse_return_stmt(),
             _ => None,
         }
     }
@@ -121,10 +122,23 @@ impl<'a> Parser<'a> {
             self.bump();
         }
 
-        Some(Stmt::LetStmt(
+        Some(Stmt::Let(
             Ident(ident),
-            Expr::IdentExpr(Ident(String::new())), // TODO
+            Expr::Ident(Ident(String::new())), // TODO
         ))
+    }
+
+    fn parse_return_stmt(&mut self) -> Option<Stmt> {
+        let stmt = Stmt::Return(Expr::Ident(Ident(String::new())));
+
+        self.bump();
+
+        // TODO We're skipping the expressions until we encounter a semicolon.
+        while !self.current_token_is(Token::Semicolon) {
+            self.bump();
+        }
+
+        Some(stmt)
     }
 }
 
@@ -169,22 +183,54 @@ mod tests {
         check_parser_errors(&mut parser);
 
         let tests = vec![
-            Stmt::LetStmt(
+            Stmt::Let(
                 Ident(String::from("x")),
-                Expr::IdentExpr(Ident(String::from(""))), // TODO
+                Expr::Ident(Ident(String::from(""))), // TODO
             ),
-            Stmt::LetStmt(
+            Stmt::Let(
                 Ident(String::from("y")),
-                Expr::IdentExpr(Ident(String::from(""))), // TODO
+                Expr::Ident(Ident(String::from(""))), // TODO
             ),
-            Stmt::LetStmt(
+            Stmt::Let(
                 Ident(String::from("foobar")),
-                Expr::IdentExpr(Ident(String::from(""))), // TODO
+                Expr::Ident(Ident(String::from(""))), // TODO
             ),
         ];
 
         assert_eq!(tests.len(), program.len());
 
+        for (i, expect) in tests.into_iter().enumerate() {
+            assert_eq!(expect, program[i]);
+        }
+    }
+
+    #[test]
+    fn test_return_stmt() {
+        let input = r#"
+return 5;
+return 10;
+return 993322;
+        "#;
+
+        let lexer = Lexer::new(input);
+        let mut parser = Parser::new(lexer);
+        let program = parser.parse();
+
+        check_parser_errors(&mut parser);
+
+        let tests = vec![
+            Stmt::Return(
+                Expr::Ident(Ident(String::from(""))), // TODO
+            ),
+            Stmt::Return(
+                Expr::Ident(Ident(String::from(""))), // TODO
+            ),
+            Stmt::Return(
+                Expr::Ident(Ident(String::from(""))), // TODO
+            ),
+        ];
+
+        assert_eq!(tests.len(), program.len());
         for (i, expect) in tests.into_iter().enumerate() {
             assert_eq!(expect, program[i]);
         }

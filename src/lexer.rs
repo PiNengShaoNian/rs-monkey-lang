@@ -57,74 +57,59 @@ impl<'a> Lexer<'a> {
     }
 
     pub fn next_token(&mut self) -> Token {
-        let tok;
         self.skip_whitespace();
-        match self.ch {
+        let tok = match self.ch {
             b'=' => {
                 if self.nextch_is(b'=') {
                     self.read_char();
-                    tok = Token::Equal;
+                    Token::Equal
                 } else {
-                    tok = Token::Assign;
+                    Token::Assign
                 }
             }
-            b'+' => {
-                tok = Token::Plus;
-            }
-            b'-' => {
-                tok = Token::Minus;
-            }
+            b'+' => Token::Plus,
+            b'-' => Token::Minus,
             b'!' => {
                 if self.nextch_is(b'=') {
                     self.read_char();
-                    tok = Token::NotEqual;
+                    Token::NotEqual
                 } else {
-                    tok = Token::Bang;
+                    Token::Bang
                 }
             }
-            b'/' => {
-                tok = Token::Slash;
-            }
-            b'*' => {
-                tok = Token::Asterisk;
-            }
+            b'/' => Token::Slash,
+            b'*' => Token::Asterisk,
             b'<' => {
-                tok = Token::LessThan;
+                if self.nextch_is(b'=') {
+                    self.read_char();
+                    Token::LessThanEqual
+                } else {
+                    Token::LessThan
+                }
             }
             b'>' => {
-                tok = Token::GreaterThan;
+                if self.nextch_is(b'=') {
+                    self.read_char();
+                    Token::GreaterThanEqual
+                } else {
+                    Token::GreaterThan
+                }
             }
-            b'(' => {
-                tok = Token::Lparen;
-            }
-            b')' => {
-                tok = Token::Rparen;
-            }
-            b'{' => {
-                tok = Token::Lbrace;
-            }
-            b'}' => {
-                tok = Token::Rbrace;
-            }
-            b',' => {
-                tok = Token::Comma;
-            }
-            b';' => {
-                tok = Token::Semicolon;
-            }
+            b'(' => Token::Lparen,
+            b')' => Token::Rparen,
+            b'{' => Token::Lbrace,
+            b'}' => Token::Rbrace,
+            b',' => Token::Comma,
+            b';' => Token::Semicolon,
             b'a'..=b'z' | b'A'..=b'Z' | b'_' => {
                 return self.consume_identifier();
             }
             b'0'..=b'9' => {
                 return self.consume_number();
             }
-            0 => {
-                tok = Token::Eof;
-            }
-            _ => {
-                tok = Token::Illegal;
-            }
-        }
+            0 => Token::Eof,
+            _ => Token::Illegal,
+        };
         self.read_char();
         return tok;
     }
@@ -197,6 +182,8 @@ if (5 < 10) {
 }
 10 == 10;
 10 != 9;
+10 <= 10;
+10 >= 10;
 "#;
 
         let tests = vec![
@@ -272,6 +259,14 @@ if (5 < 10) {
             Token::Int(10),
             Token::NotEqual,
             Token::Int(9),
+            Token::Semicolon,
+            Token::Int(10),
+            Token::LessThanEqual,
+            Token::Int(10),
+            Token::Semicolon,
+            Token::Int(10),
+            Token::GreaterThanEqual,
+            Token::Int(10),
             Token::Semicolon,
             Token::Eof,
         ];

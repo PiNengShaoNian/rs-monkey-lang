@@ -101,7 +101,7 @@ impl<'a> Parser<'a> {
         match self.current_token {
             Token::Let => self.parse_let_stmt(),
             Token::Return => self.parse_return_stmt(),
-            _ => None,
+            _ => self.parse_expr_stmt(),
         }
     }
 
@@ -140,6 +140,40 @@ impl<'a> Parser<'a> {
 
         Some(stmt)
     }
+
+    fn parse_expr_stmt(&mut self) -> Option<Stmt> {
+        match self.parse_expr(Precedence::Lowest) {
+            Some(expr) => {
+                if self.next_token_is(Token::Semicolon) {
+                    self.bump();
+                }
+                Some(Stmt::Expr(expr))
+            }
+            None => None,
+        }
+    }
+
+    fn parse_expr(&mut self, precedence: Precedence) -> Option<Expr> {
+        match self.current_token {
+            Token::Ident(_) => self.parse_expr_ident(),
+            Token::Int(_) => self.parse_expr_int(),
+            _ => None,
+        }
+    }
+
+    fn parse_expr_ident(&mut self) -> Option<Expr> {
+        match self.current_token {
+            Token::Ident(ref mut ident) => Some(Expr::Ident(Ident(ident.clone()))), // TODO clone...??
+            _ => None,
+        }
+    }
+
+    fn parse_expr_int(&mut self) -> Option<Expr> {
+        match self.current_token {
+            Token::Int(ref mut int) => Some(Expr::Literal(Literal::Int(int.clone()))), // TODO clone...??
+            _ => None,
+        }
+    }
 }
 
 #[cfg(test)]
@@ -148,7 +182,7 @@ mod tests {
     use crate::lexer::Lexer;
     use crate::parser::Parser;
 
-    fn check_parser_errors(parser: &mut Parser) {
+    fn check_parse_errors(parser: &mut Parser) {
         let errors = parser.get_errors();
 
         if errors.len() == 0 {
@@ -176,11 +210,10 @@ mod tests {
         let foobar = 838383;
                 "#;
 
-        let lexer = Lexer::new(input);
-        let mut parser = Parser::new(lexer);
+        let mut parser = Parser::new(Lexer::new(input));
         let program = parser.parse();
 
-        check_parser_errors(&mut parser);
+        check_parse_errors(&mut parser);
 
         let tests = vec![
             Stmt::Let(
@@ -212,11 +245,10 @@ return 10;
 return 993322;
         "#;
 
-        let lexer = Lexer::new(input);
-        let mut parser = Parser::new(lexer);
+        let mut parser = Parser::new(Lexer::new(input));
         let program = parser.parse();
 
-        check_parser_errors(&mut parser);
+        check_parse_errors(&mut parser);
 
         let tests = vec![
             Stmt::Return(
@@ -234,5 +266,36 @@ return 993322;
         for (i, expect) in tests.into_iter().enumerate() {
             assert_eq!(expect, program[i]);
         }
+    }
+
+    #[test]
+    fn test_ident_expr() {
+        let input = "foobar;";
+
+        let mut parser = Parser::new(Lexer::new(input));
+        let program = parser.parse();
+
+        check_parse_errors(&mut parser);
+
+        assert_eq!(1, program.len());
+
+        assert_eq!(
+            Stmt::Expr(Expr::Ident(Ident(String::from("foobar")))),
+            program[0]
+        );
+    }
+
+    #[test]
+    fn test_integer_literal_expr() {
+        let input = "5;";
+
+        let mut parser = Parser::new(Lexer::new(input));
+        let program = parser.parse();
+
+        check_parse_errors(&mut parser);
+
+        assert_eq!(1, program.len());
+
+        assert_eq!(Stmt::Expr(Expr::Literal(Literal::Int(5))), program[0],);
     }
 }

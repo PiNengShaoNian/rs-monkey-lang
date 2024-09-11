@@ -492,27 +492,23 @@ mod tests {
         let program = parser.parse();
 
         check_parse_errors(&mut parser);
-
-        let tests = vec![
-            Stmt::Let(
-                Ident(String::from("x")),
-                Expr::Ident(Ident(String::from(""))), // TODO
-            ),
-            Stmt::Let(
-                Ident(String::from("y")),
-                Expr::Ident(Ident(String::from(""))), // TODO
-            ),
-            Stmt::Let(
-                Ident(String::from("foobar")),
-                Expr::Ident(Ident(String::from(""))), // TODO
-            ),
-        ];
-
-        assert_eq!(tests.len(), program.len());
-
-        for (i, expect) in tests.into_iter().enumerate() {
-            assert_eq!(expect, program[i]);
-        }
+        assert_eq!(
+            vec![
+                Stmt::Let(
+                    Ident(String::from("x")),
+                    Expr::Ident(Ident(String::new())), // TODO
+                ),
+                Stmt::Let(
+                    Ident(String::from("y")),
+                    Expr::Ident(Ident(String::new())), // TODO
+                ),
+                Stmt::Let(
+                    Ident(String::from("foobar")),
+                    Expr::Ident(Ident(String::new())), // TODO
+                ),
+            ],
+            program,
+        );
     }
 
     #[test]
@@ -527,23 +523,20 @@ return 993322;
         let program = parser.parse();
 
         check_parse_errors(&mut parser);
-
-        let tests = vec![
-            Stmt::Return(
-                Expr::Ident(Ident(String::from(""))), // TODO
-            ),
-            Stmt::Return(
-                Expr::Ident(Ident(String::from(""))), // TODO
-            ),
-            Stmt::Return(
-                Expr::Ident(Ident(String::from(""))), // TODO
-            ),
-        ];
-
-        assert_eq!(tests.len(), program.len());
-        for (i, expect) in tests.into_iter().enumerate() {
-            assert_eq!(expect, program[i]);
-        }
+        assert_eq!(
+            vec![
+                Stmt::Return(
+                    Expr::Ident(Ident(String::from(""))), // TODO
+                ),
+                Stmt::Return(
+                    Expr::Ident(Ident(String::from(""))), // TODO
+                ),
+                Stmt::Return(
+                    Expr::Ident(Ident(String::from(""))), // TODO
+                ),
+            ],
+            program,
+        );
     }
 
     #[test]
@@ -554,12 +547,9 @@ return 993322;
         let program = parser.parse();
 
         check_parse_errors(&mut parser);
-
-        assert_eq!(1, program.len());
-
         assert_eq!(
-            Stmt::Expr(Expr::Ident(Ident(String::from("foobar")))),
-            program[0]
+            vec![Stmt::Expr(Expr::Ident(Ident(String::from("foobar")))),],
+            program,
         );
     }
 
@@ -571,10 +561,7 @@ return 993322;
         let program = parser.parse();
 
         check_parse_errors(&mut parser);
-
-        assert_eq!(1, program.len());
-
-        assert_eq!(Stmt::Expr(Expr::Literal(Literal::Int(5))), program[0],);
+        assert_eq!(vec![Stmt::Expr(Expr::Literal(Literal::Int(5))),], program,);
     }
 
     #[test]
@@ -589,8 +576,7 @@ return 993322;
             let program = parser.parse();
 
             check_parse_errors(&mut parser);
-            assert_eq!(1, program.len());
-            assert_eq!(expect, program[0]);
+            assert_eq!(vec![expect], program);
         }
     }
 
@@ -618,8 +604,7 @@ return 993322;
             let program = parser.parse();
 
             check_parse_errors(&mut parser);
-            assert_eq!(1, program.len());
-            assert_eq!(expect, program[0]);
+            assert_eq!(vec![expect], program);
         }
     }
 
@@ -713,37 +698,29 @@ return 993322;
             let program = parser.parse();
 
             check_parse_errors(&mut parser);
-
-            assert_eq!(1, program.len());
-            assert_eq!(expect, program[0]);
+            assert_eq!(vec![expect], program);
         }
     }
 
     #[test]
     fn test_if_expr() {
         let input = "if (x < y) { x }";
-        #[test]
-        fn test_if_expr() {
-            let input = "if (x < y) { x }";
+        let mut parser = Parser::new(Lexer::new(input));
+        let program = parser.parse();
 
-            let mut parser = Parser::new(Lexer::new(input));
-            let program = parser.parse();
-
-            check_parse_errors(&mut parser);
-            assert_eq!(1, program.len());
-            assert_eq!(
-                Stmt::Expr(Expr::If {
-                    cond: Box::new(Expr::Infix(
-                        Infix::LessThan,
-                        Box::new(Expr::Ident(Ident(String::from("x")))),
-                        Box::new(Expr::Ident(Ident(String::from("y"))))
-                    )),
-                    consequence: vec![Stmt::Expr(Expr::Ident(Ident(String::from("x")))),],
-                    alternative: None,
-                },),
-                program[0],
-            );
-        }
+        check_parse_errors(&mut parser);
+        assert_eq!(
+            vec![Stmt::Expr(Expr::If {
+                cond: Box::new(Expr::Infix(
+                    Infix::LessThan,
+                    Box::new(Expr::Ident(Ident(String::from("x")))),
+                    Box::new(Expr::Ident(Ident(String::from("y"))))
+                )),
+                consequence: vec![Stmt::Expr(Expr::Ident(Ident(String::from("x")))),],
+                alternative: None,
+            },),],
+            program,
+        );
     }
 
     #[test]
@@ -754,9 +731,8 @@ return 993322;
         let program = parser.parse();
 
         check_parse_errors(&mut parser);
-        assert_eq!(1, program.len());
         assert_eq!(
-            Stmt::Expr(Expr::If {
+            vec![Stmt::Expr(Expr::If {
                 cond: Box::new(Expr::Infix(
                     Infix::LessThan,
                     Box::new(Expr::Ident(Ident(String::from("x")))),
@@ -764,8 +740,8 @@ return 993322;
                 )),
                 consequence: vec![Stmt::Expr(Expr::Ident(Ident(String::from("x")))),],
                 alternative: Some(vec![Stmt::Expr(Expr::Ident(Ident(String::from("y"))))]),
-            },),
-            program[0],
+            },),],
+            program,
         );
     }
 
@@ -777,17 +753,16 @@ return 993322;
         let program = parser.parse();
 
         check_parse_errors(&mut parser);
-        assert_eq!(1, program.len());
         assert_eq!(
-            Stmt::Expr(Expr::Func {
+            vec![Stmt::Expr(Expr::Func {
                 params: vec![Ident(String::from("x")), Ident(String::from("y")),],
                 body: vec![Stmt::Expr(Expr::Infix(
                     Infix::Plus,
                     Box::new(Expr::Ident(Ident(String::from("x")))),
                     Box::new(Expr::Ident(Ident(String::from("y")))),
                 ),),],
-            },),
-            program[0],
+            },),],
+            program,
         );
     }
 
@@ -812,11 +787,11 @@ return 993322;
 
             check_parse_errors(&mut parser);
             assert_eq!(
-                Stmt::Expr(Expr::Func {
+                vec![Stmt::Expr(Expr::Func {
                     params: expect,
                     body: vec![],
-                }),
-                program[0]
+                },),],
+                program,
             );
         }
     }
@@ -1223,9 +1198,7 @@ return 993322;
             let program = parser.parse();
 
             check_parse_errors(&mut parser);
-
-            assert_eq!(1, program.len());
-            assert_eq!(expect, program[0]);
+            assert_eq!(vec![expect], program);
         }
     }
 }

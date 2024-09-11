@@ -130,7 +130,7 @@ impl<'a> Lexer<'a> {
 
         let literal = &self.input[start_pos..self.pos];
         match literal {
-            "fn" => Token::Function,
+            "fn" => Token::Func,
             "let" => Token::Let,
             "true" => Token::Bool(true),
             "false" => Token::Bool(false),
@@ -200,7 +200,7 @@ if (5 < 10) {
             Token::Let,
             Token::Ident(String::from("add")),
             Token::Assign,
-            Token::Function,
+            Token::Func,
             Token::Lparen,
             Token::Ident(String::from("x")),
             Token::Comma,

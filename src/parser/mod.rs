@@ -1,3 +1,4 @@
+use core::fmt;
 use std::fmt::format;
 
 use crate::ast::*;
@@ -18,6 +19,12 @@ pub struct ParseError {
 impl ParseError {
     fn new(kind: ParseErrorKind, msg: String) -> Self {
         ParseError { kind, msg }
+    }
+}
+
+impl fmt::Display for ParseError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{:?}", self)
     }
 }
 

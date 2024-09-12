@@ -11,6 +11,13 @@ impl Evaluator {
         Evaluator {}
     }
 
+    fn is_truthy(obj: Object) -> bool {
+        match obj {
+            Object::Null | Object::Bool(false) => false,
+            _ => true,
+        }
+    }
+
     pub fn eval(&mut self, program: Program) -> Object {
         self.eval_block_stmt(program).unwrap_or(Object::Null)
     }
@@ -45,6 +52,11 @@ impl Evaluator {
                     None
                 }
             }
+            Expr::If {
+                cond,
+                consequence,
+                alternative,
+            } => self.eval_if_expr(*cond, consequence, alternative),
             _ => None,
         }
     }
@@ -105,6 +117,26 @@ impl Evaluator {
         match literal {
             Literal::Int(value) => Some(Object::Int(value)),
             Literal::Bool(value) => Some(Object::Bool(value)),
+        }
+    }
+
+    fn eval_if_expr(
+        &mut self,
+        cond: Expr,
+        consequence: BlockStmt,
+        alternative: Option<BlockStmt>,
+    ) -> Option<Object> {
+        let cond = match self.eval_expr(cond) {
+            Some(cond) => cond,
+            None => return None,
+        };
+
+        if Self::is_truthy(cond) {
+            self.eval_block_stmt(consequence)
+        } else if let Some(alt) = alternative {
+            self.eval_block_stmt(alt)
+        } else {
+            None
         }
     }
 }
@@ -177,6 +209,27 @@ mod tests {
             ("1 != 1", Object::Bool(false)),
             ("1 == 2", Object::Bool(false)),
             ("1 != 2", Object::Bool(true)),
+        ];
+
+        for (input, expect) in tests {
+            assert_eq!(expect, eval(input));
+        }
+    }
+
+    #[test]
+    fn test_if_else_expr() {
+        let tests = vec![
+            ("if (true) { 10 }", Object::Int(10)),
+            ("if (false) { 10 }", Object::Null),
+            ("if (1) { 10 }", Object::Int(10)),
+            ("if (1 < 2) { 10 }", Object::Int(10)),
+            ("if (1 > 2) { 10 }", Object::Null),
+            ("if (1 > 2) { 10 } else { 20 }", Object::Int(20)),
+            ("if (1 < 2) { 10 } else { 20 }", Object::Int(10)),
+            ("if (1 <= 2) { 10 }", Object::Int(10)),
+            ("if (1 >= 2) { 10 }", Object::Null),
+            ("if (1 >= 2) { 10 } else { 20 }", Object::Int(20)),
+            ("if (1 <= 2) { 10 } else { 20 }", Object::Int(10)),
         ];
 
         for (input, expect) in tests {

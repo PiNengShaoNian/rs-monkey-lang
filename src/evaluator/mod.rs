@@ -1,14 +1,18 @@
+pub mod env;
 pub mod object;
 
+use self::env::*;
 use self::object::*;
 use crate::ast::*;
 
 #[derive(Debug)]
-pub struct Evaluator {}
+pub struct Evaluator {
+    env: Env,
+}
 
 impl Evaluator {
     pub fn new() -> Self {
-        Evaluator {}
+        Evaluator { env: Env::new() }
     }
 
     fn is_truthy(obj: Object) -> bool {
@@ -59,6 +63,19 @@ impl Evaluator {
 
     fn eval_stmt(&mut self, stmt: Stmt) -> Option<Object> {
         match stmt {
+            Stmt::Let(ident, expr) => {
+                if let Some(value) = self.eval_expr(expr) {
+                    if Self::is_error(&value) {
+                        Some(value)
+                    } else {
+                        let Ident(name) = ident;
+                        self.env.set(name, &value);
+                        Some(value)
+                    }
+                } else {
+                    None
+                }
+            }
             Stmt::Expr(expr) => self.eval_expr(expr),
             Stmt::Return(expr) => {
                 if let Some(value) = self.eval_expr(expr) {
@@ -77,6 +94,7 @@ impl Evaluator {
 
     fn eval_expr(&mut self, expr: Expr) -> Option<Object> {
         match expr {
+            Expr::Ident(ident) => Some(self.eval_ident(ident)),
             Expr::Literal(literal) => self.eval_literal(literal),
             Expr::Prefix(prefix, expr) => {
                 if let Some(right) = self.eval_expr(*expr) {
@@ -100,6 +118,14 @@ impl Evaluator {
                 alternative,
             } => self.eval_if_expr(*cond, consequence, alternative),
             _ => None,
+        }
+    }
+
+    fn eval_ident(&mut self, ident: Ident) -> Object {
+        let Ident(name) = ident;
+        match self.env.get(name.clone()) {
+            Some(value) => value,
+            None => Object::Error(String::from(format!("identifier not found: {}", name))),
         }
     }
 
@@ -313,6 +339,23 @@ if (10 > 1) {
     }
 
     #[test]
+    fn test_let_stmt() {
+        let tests = vec![
+            ("let a = 5; a;", Object::Int(5)),
+            ("let a = 5 * 5; a;", Object::Int(25)),
+            ("let a = 5; let b = a; b;", Object::Int(5)),
+            (
+                "let a = 5; let b = a; let c = a + b + 5; c;",
+                Object::Int(15),
+            ),
+        ];
+
+        for (input, expect) in tests {
+            assert_eq!(expect, eval(input));
+        }
+    }
+
+    #[test]
     fn test_error_handing() {
         let tests = vec![
             (
@@ -344,6 +387,10 @@ if (10 > 1) {
   return 1;
 }"#,
                 Object::Error(String::from("unknown operator: true + false")),
+            ),
+            (
+                "foobar",
+                Object::Error(String::from("identifier not found: foobar")),
             ),
         ];
 

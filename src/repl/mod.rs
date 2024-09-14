@@ -1,6 +1,6 @@
 use std::io::{Stdin, Stdout, Write};
 
-use crate::{evaluator::Evaluator, lexer::Lexer, parser::Parser, token::Token};
+use crate::{evaluator::Evaluator, lexer::Lexer, parser::Parser};
 
 pub fn start(stdin: Stdin, stdout: Stdout) {
     let mut evaluator = Evaluator::new();
@@ -20,17 +20,17 @@ pub fn start(stdin: Stdin, stdout: Stdout) {
 
         if errors.len() > 0 {
             for err in errors {
-                out.write(format!("{}", err).as_bytes());
+                out.write(format!("{}", err).as_bytes()).unwrap();
             }
-            out.flush();
+            out.flush().unwrap();
             continue;
         }
 
-        let evaluated = evaluator.eval(program);
+        if let Some(evaluated) = evaluator.eval(program) {
+            out.write(format!("{}", evaluated).as_bytes()).unwrap();
+            out.write(b"\n").unwrap();
+        }
 
-        out.write(format!("{}", evaluated).as_bytes());
-
-        out.write(b"\n").unwrap();
         out.flush().unwrap();
     }
 }

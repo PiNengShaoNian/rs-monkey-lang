@@ -1,5 +1,4 @@
 use core::fmt;
-use std::fmt::format;
 
 use crate::ast::*;
 use crate::lexer::Lexer;
@@ -158,7 +157,7 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_let_stmt(&mut self) -> Option<Stmt> {
-        let ident = match &self.next_token {
+        match &self.next_token {
             Token::Ident(_) => self.bump(),
             _ => return None,
         };
@@ -402,7 +401,7 @@ impl<'a> Parser<'a> {
 
         self.bump();
 
-        let ident = match self.parse_ident() {
+        match self.parse_ident() {
             Some(ident) => params.push(ident),
             None => return None,
         };
@@ -411,7 +410,7 @@ impl<'a> Parser<'a> {
             self.bump();
             self.bump();
 
-            let ident = match self.parse_ident() {
+            match self.parse_ident() {
                 Some(ident) => params.push(ident),
                 None => return None,
             };

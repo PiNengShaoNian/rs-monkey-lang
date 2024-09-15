@@ -1,4 +1,5 @@
 use core::fmt;
+use std::vec;
 
 use crate::ast::*;
 use crate::lexer::Lexer;
@@ -58,6 +59,7 @@ impl<'a> Parser<'a> {
             Token::GreaterThan | Token::GreaterThanEqual => Precedence::LessGreater,
             Token::Plus | Token::Minus => Precedence::Sum,
             Token::Slash | Token::Asterisk => Precedence::Product,
+            Token::Lbracket => Precedence::Index,
             Token::Lparen => Precedence::Call,
             _ => Precedence::Lowest,
         }
@@ -76,12 +78,12 @@ impl<'a> Parser<'a> {
         self.current_token == tok
     }
 
-    fn next_token_is(&mut self, tok: Token) -> bool {
-        self.next_token == tok
+    fn next_token_is(&mut self, tok: &Token) -> bool {
+        self.next_token == *tok
     }
 
     fn expect_next_token(&mut self, tok: Token) -> bool {
-        if self.next_token_is(tok.clone()) {
+        if self.next_token_is(&tok.clone()) {
             self.bump();
             return true;
         } else {
@@ -178,7 +180,7 @@ impl<'a> Parser<'a> {
             None => return None,
         };
 
-        if self.next_token_is(Token::Semicolon) {
+        if self.next_token_is(&Token::Semicolon) {
             self.bump();
         }
 
@@ -193,7 +195,7 @@ impl<'a> Parser<'a> {
             None => return None,
         };
 
-        if self.next_token_is(Token::Semicolon) {
+        if self.next_token_is(&Token::Semicolon) {
             self.bump();
         }
 
@@ -203,7 +205,7 @@ impl<'a> Parser<'a> {
     fn parse_expr_stmt(&mut self) -> Option<Stmt> {
         match self.parse_expr(Precedence::Lowest) {
             Some(expr) => {
-                if self.next_token_is(Token::Semicolon) {
+                if self.next_token_is(&Token::Semicolon) {
                     self.bump();
                 }
                 Some(Stmt::Expr(expr))
@@ -219,6 +221,7 @@ impl<'a> Parser<'a> {
             Token::Int(_) => self.parse_int_expr(),
             Token::String(_) => self.parse_string_expr(),
             Token::Bool(_) => self.parse_bool_expr(),
+            Token::Lbracket => self.parse_array_expr(),
             Token::Bang | Token::Minus => self.parse_prefix_expr(),
             Token::Lparen => self.parse_grouped_expr(),
             Token::If => self.parse_if_expr(),
@@ -230,7 +233,7 @@ impl<'a> Parser<'a> {
         };
 
         // infix
-        while !self.next_token_is(Token::Semicolon) && precedence < self.next_token_precedence() {
+        while !self.next_token_is(&Token::Semicolon) && precedence < self.next_token_precedence() {
             match self.next_token {
                 Token::Plus
                 | Token::Minus
@@ -244,6 +247,10 @@ impl<'a> Parser<'a> {
                 | Token::GreaterThanEqual => {
                     self.bump();
                     left = self.parse_infix_expr(left.unwrap());
+                }
+                Token::Lbracket => {
+                    self.bump();
+                    left = self.parse_index_expr(left.unwrap());
                 }
                 Token::Lparen => {
                     self.bump();
@@ -291,6 +298,45 @@ impl<'a> Parser<'a> {
         }
     }
 
+    fn parse_array_expr(&mut self) -> Option<Expr> {
+        match self.parse_expr_list(Token::Rbracket) {
+            Some(list) => Some(Expr::Literal(Literal::Array(list))),
+            None => None,
+        }
+    }
+
+    fn parse_expr_list(&mut self, end: Token) -> Option<Vec<Expr>> {
+        let mut list = vec![];
+
+        if self.next_token_is(&end) {
+            self.bump();
+            return Some(list);
+        }
+
+        self.bump();
+
+        match self.parse_expr(Precedence::Lowest) {
+            Some(expr) => list.push(expr),
+            None => return None,
+        }
+
+        while self.next_token_is(&Token::Comma) {
+            self.bump();
+            self.bump();
+
+            match self.parse_expr(Precedence::Lowest) {
+                Some(expr) => list.push(expr),
+                None => return None,
+            }
+        }
+
+        if !self.expect_next_token(end) {
+            return None;
+        }
+
+        Some(list)
+    }
+
     fn parse_prefix_expr(&mut self) -> Option<Expr> {
         let prefix = match self.current_token {
             Token::Bang => Prefix::Not,
@@ -331,6 +377,21 @@ impl<'a> Parser<'a> {
         }
     }
 
+    fn parse_index_expr(&mut self, left: Expr) -> Option<Expr> {
+        self.bump();
+
+        let index = match self.parse_expr(Precedence::Lowest) {
+            Some(expr) => expr,
+            None => return None,
+        };
+
+        if !self.expect_next_token(Token::Rbracket) {
+            return None;
+        }
+
+        Some(Expr::Index(Box::new(left), Box::new(index)))
+    }
+
     fn parse_grouped_expr(&mut self) -> Option<Expr> {
         self.bump();
 
@@ -362,7 +423,7 @@ impl<'a> Parser<'a> {
         let consequence = self.parse_block_stmt();
         let mut alternative = None;
 
-        if self.next_token_is(Token::Else) {
+        if self.next_token_is(&Token::Else) {
             self.bump();
 
             if !self.expect_next_token(Token::Lbrace) {
@@ -402,7 +463,7 @@ impl<'a> Parser<'a> {
     fn parse_func_params(&mut self) -> Option<Vec<Ident>> {
         let mut params = vec![];
 
-        if self.next_token_is(Token::Rparen) {
+        if self.next_token_is(&Token::Rparen) {
             self.bump();
             return Some(params);
         }
@@ -414,7 +475,7 @@ impl<'a> Parser<'a> {
             None => return None,
         };
 
-        while self.next_token_is(Token::Comma) {
+        while self.next_token_is(&Token::Comma) {
             self.bump();
             self.bump();
 
@@ -432,7 +493,7 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_call_expr(&mut self, func: Expr) -> Option<Expr> {
-        let args = match self.parse_call_args() {
+        let args = match self.parse_expr_list(Token::Rparen) {
             Some(args) => args,
             None => return None,
         };
@@ -441,38 +502,6 @@ impl<'a> Parser<'a> {
             func: Box::new(func),
             args,
         })
-    }
-
-    fn parse_call_args(&mut self) -> Option<Vec<Expr>> {
-        let mut args = vec![];
-
-        if self.next_token_is(Token::Rparen) {
-            self.bump();
-            return Some(args);
-        }
-
-        self.bump();
-
-        match self.parse_expr(Precedence::Lowest) {
-            Some(expr) => args.push(expr),
-            None => return None,
-        }
-
-        while self.next_token_is(Token::Comma) {
-            self.bump();
-            self.bump();
-
-            match self.parse_expr(Precedence::Lowest) {
-                Some(expr) => args.push(expr),
-                None => return None,
-            }
-        }
-
-        if !self.expect_next_token(Token::Rparen) {
-            return None;
-        }
-
-        Some(args)
     }
 }
 
@@ -588,6 +617,53 @@ return 993322;
             check_parse_errors(&mut parser);
             assert_eq!(vec![expect], program);
         }
+    }
+
+    #[test]
+    fn test_array_literal_expr() {
+        let input = "[1, 2 * 2, 3 + 3]";
+
+        let mut parser = Parser::new(Lexer::new(input));
+        let program = parser.parse();
+
+        check_parse_errors(&mut parser);
+        assert_eq!(
+            vec![Stmt::Expr(Expr::Literal(Literal::Array(vec![
+                Expr::Literal(Literal::Int(1)),
+                Expr::Infix(
+                    Infix::Multiply,
+                    Box::new(Expr::Literal(Literal::Int(2))),
+                    Box::new(Expr::Literal(Literal::Int(2))),
+                ),
+                Expr::Infix(
+                    Infix::Plus,
+                    Box::new(Expr::Literal(Literal::Int(3))),
+                    Box::new(Expr::Literal(Literal::Int(3))),
+                ),
+            ])))],
+            program,
+        );
+    }
+
+    #[test]
+    fn test_index_expr() {
+        let input = "myArray[1 + 1]";
+
+        let mut parser = Parser::new(Lexer::new(input));
+        let program = parser.parse();
+
+        check_parse_errors(&mut parser);
+        assert_eq!(
+            vec![Stmt::Expr(Expr::Index(
+                Box::new(Expr::Ident(Ident(String::from("myArray")))),
+                Box::new(Expr::Infix(
+                    Infix::Plus,
+                    Box::new(Expr::Literal(Literal::Int(1))),
+                    Box::new(Expr::Literal(Literal::Int(1))),
+                )),
+            ))],
+            program
+        );
     }
 
     #[test]
@@ -1199,6 +1275,61 @@ return 993322;
                         )),
                         Box::new(Expr::Ident(Ident(String::from("g")))),
                     )],
+                }),
+            ),
+            (
+                "a * [1, 2, 3, 4][b * c] * d",
+                Stmt::Expr(Expr::Infix(
+                    Infix::Multiply,
+                    Box::new(Expr::Infix(
+                        Infix::Multiply,
+                        Box::new(Expr::Ident(Ident(String::from("a")))),
+                        Box::new(Expr::Index(
+                            Box::new(Expr::Literal(Literal::Array(vec![
+                                Expr::Literal(Literal::Int(1)),
+                                Expr::Literal(Literal::Int(2)),
+                                Expr::Literal(Literal::Int(3)),
+                                Expr::Literal(Literal::Int(4)),
+                            ]))),
+                            Box::new(Expr::Infix(
+                                Infix::Multiply,
+                                Box::new(Expr::Ident(Ident(String::from("b")))),
+                                Box::new(Expr::Ident(Ident(String::from("c")))),
+                            )),
+                        )),
+                    )),
+                    Box::new(Expr::Ident(Ident(String::from("d")))),
+                )),
+            ),
+            (
+                "add(a * b[2], b[1], 2 * [1, 2][1])",
+                Stmt::Expr(Expr::Call {
+                    func: Box::new(Expr::Ident(Ident(String::from("add")))),
+                    args: vec![
+                        Expr::Infix(
+                            Infix::Multiply,
+                            Box::new(Expr::Ident(Ident(String::from("a")))),
+                            Box::new(Expr::Index(
+                                Box::new(Expr::Ident(Ident(String::from("b")))),
+                                Box::new(Expr::Literal(Literal::Int(2))),
+                            )),
+                        ),
+                        Expr::Index(
+                            Box::new(Expr::Ident(Ident(String::from("b")))),
+                            Box::new(Expr::Literal(Literal::Int(1))),
+                        ),
+                        Expr::Infix(
+                            Infix::Multiply,
+                            Box::new(Expr::Literal(Literal::Int(2))),
+                            Box::new(Expr::Index(
+                                Box::new(Expr::Literal(Literal::Array(vec![
+                                    Expr::Literal(Literal::Int(1)),
+                                    Expr::Literal(Literal::Int(2)),
+                                ]))),
+                                Box::new(Expr::Literal(Literal::Int(1))),
+                            )),
+                        ),
+                    ],
                 }),
             ),
         ];

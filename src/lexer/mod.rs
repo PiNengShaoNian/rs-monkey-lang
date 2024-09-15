@@ -99,6 +99,8 @@ impl<'a> Lexer<'a> {
             b')' => Token::Rparen,
             b'{' => Token::Lbrace,
             b'}' => Token::Rbrace,
+            b'[' => Token::Lbracket,
+            b']' => Token::Rbracket,
             b',' => Token::Comma,
             b';' => Token::Semicolon,
             b'a'..=b'z' | b'A'..=b'Z' | b'_' => {
@@ -174,9 +176,7 @@ impl<'a> Lexer<'a> {
                     self.read_char();
                     return Token::String(literal.to_string());
                 }
-                _ => {
-                    self.read_char()
-                }
+                _ => self.read_char(),
             }
         }
     }
@@ -208,6 +208,8 @@ if (5 < 10) {
 10 >= 10;
 "foobar";
 "foo bar";
+
+[1, 2];
 "#;
 
         let tests = vec![
@@ -295,6 +297,12 @@ if (5 < 10) {
             Token::String(String::from("foobar")),
             Token::Semicolon,
             Token::String(String::from("foo bar")),
+            Token::Semicolon,
+            Token::Lbracket,
+            Token::Int(1),
+            Token::Comma,
+            Token::Int(2),
+            Token::Rbracket,
             Token::Semicolon,
             Token::Eof,
         ];

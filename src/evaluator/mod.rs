@@ -1,8 +1,12 @@
+pub mod builtins;
 pub mod env;
 pub mod object;
 
 use std::cell::RefCell;
+use std::collections::HashMap;
 use std::rc::Rc;
+
+use builtins::new_builtins;
 
 use self::env::*;
 use self::object::*;
@@ -11,12 +15,14 @@ use crate::ast::*;
 #[derive(Debug)]
 pub struct Evaluator {
     env: Rc<RefCell<Env>>,
+    builtins: HashMap<String, Object>,
 }
 
 impl Evaluator {
     pub fn new() -> Self {
         Evaluator {
             env: Rc::new(RefCell::new(Env::new())),
+            builtins: new_builtins(),
         }
     }
 
@@ -131,7 +137,10 @@ impl Evaluator {
         let Ident(name) = ident;
         match self.env.borrow_mut().get(name.clone()) {
             Some(value) => value,
-            None => Object::Error(String::from(format!("identifier not found: {}", name))),
+            None => match self.builtins.get(&name) {
+                Some(value) => value.clone(),
+                None => Object::Error(String::from(format!("identifier not found: {}", name))),
+            },
         }
     }
 
@@ -245,8 +254,13 @@ impl Evaluator {
     }
 
     fn eval_call_expr(&mut self, func: Box<Expr>, args: Vec<Expr>) -> Object {
+        let args = args
+            .iter()
+            .map(|e| self.eval_expr(e.clone()).unwrap_or(Object::Null))
+            .collect::<Vec<_>>();
         let (params, body, env) = match self.eval_expr(*func) {
             Some(Object::Func(params, body, env)) => (params, body, env),
+            Some(Object::Builtin(f)) => return f(args),
             Some(o) => return Object::Error(format!("{} is not valid function", o)),
             None => return Object::Null,
         };
@@ -258,11 +272,6 @@ impl Evaluator {
                 args.len()
             ));
         }
-
-        let args = args
-            .iter()
-            .map(|e| self.eval_expr(e.clone()).unwrap_or(Object::Null))
-            .collect::<Vec<Object>>();
 
         let current_env = Rc::clone(&self.env);
         let mut scoped_env = Env::new_with_outer(Rc::clone(&env));
@@ -501,6 +510,31 @@ addTwo(2);
         "#;
 
         assert_eq!(Some(Object::Int(4)), eval(input));
+    }
+
+    #[test]
+    fn test_builtin_functions() {
+        let tests = vec![
+            ("len(\"\")", Some(Object::Int(0))),
+            ("len(\"four\")", Some(Object::Int(4))),
+            ("len(\"hello world\")", Some(Object::Int(11))),
+            (
+                "len(1)",
+                Some(Object::Error(String::from(
+                    "argument to `len` not supported, got 1",
+                ))),
+            ),
+            (
+                "len(\"one\", \"two\")",
+                Some(Object::Error(String::from(
+                    "wrong number of arguments. got=2, want=1",
+                ))),
+            ),
+        ];
+
+        for (input, expect) in tests {
+            assert_eq!(expect, eval(input));
+        }
     }
 
     #[test]

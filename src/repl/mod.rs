@@ -1,36 +1,47 @@
-use std::io::{Stdin, Stdout, Write};
+use rustyline::error::ReadlineError;
+use rustyline::Editor;
 
 use crate::{evaluator::Evaluator, lexer::Lexer, parser::Parser};
 
-pub fn start(stdin: Stdin, stdout: Stdout) {
+pub fn start() {
+    let mut rl = Editor::<()>::new();
     let mut evaluator = Evaluator::new();
 
+    println!("Hello! This is the Monkey programming language!");
+    println!("Feel free to type in commands");
+    println!("");
+
     loop {
-        let mut out = stdout.lock();
-        out.write(b">> ").unwrap();
-        out.flush().unwrap();
+        match rl.readline(">> ") {
+            Ok(line) => {
+                rl.add_history_entry(&line);
 
-        let mut line = String::new();
+                let mut parser = Parser::new(Lexer::new(&line));
+                let program = parser.parse();
+                let errors = parser.get_errors();
 
-        stdin.read_line(&mut line).expect("Failed to read line");
+                if errors.len() > 0 {
+                    for err in errors {
+                        println!("{}", err);
+                    }
+                    continue;
+                }
 
-        let mut parser = Parser::new(Lexer::new(&line));
-        let program = parser.parse();
-        let errors = parser.get_errors();
-
-        if errors.len() > 0 {
-            for err in errors {
-                out.write(format!("{}", err).as_bytes()).unwrap();
+                if let Some(evaluated) = evaluator.eval(program) {
+                    println!("{}\n", evaluated);
+                }
             }
-            out.flush().unwrap();
-            continue;
+            Err(ReadlineError::Interrupted) => {
+                println!("\nBye :)");
+                break;
+            }
+            Err(ReadlineError::Eof) => {
+                println!("");
+                break;
+            }
+            Err(err) => {
+                println!("Error: {:?}", err);
+            }
         }
-
-        if let Some(evaluated) = evaluator.eval(program) {
-            out.write(format!("{}", evaluated).as_bytes()).unwrap();
-            out.write(b"\n").unwrap();
-        }
-
-        out.flush().unwrap();
     }
 }

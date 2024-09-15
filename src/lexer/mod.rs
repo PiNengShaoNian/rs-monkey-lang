@@ -107,6 +107,9 @@ impl<'a> Lexer<'a> {
             b'0'..=b'9' => {
                 return self.consume_number();
             }
+            b'"' => {
+                return self.consume_string();
+            }
             0 => Token::Eof,
             _ => Token::Illegal,
         };
@@ -158,6 +161,25 @@ impl<'a> Lexer<'a> {
         let literal = &self.input[start_pos..self.pos];
         Token::Int(literal.parse::<i64>().unwrap())
     }
+
+    fn consume_string(&mut self) -> Token {
+        self.read_char();
+
+        let start_pos = self.pos;
+
+        loop {
+            match self.ch {
+                b'"' | 0 => {
+                    let literal = &self.input[start_pos..self.pos];
+                    self.read_char();
+                    return Token::String(literal.to_string());
+                }
+                _ => {
+                    self.read_char()
+                }
+            }
+        }
+    }
 }
 
 #[cfg(test)]
@@ -184,6 +206,8 @@ if (5 < 10) {
 10 != 9;
 10 <= 10;
 10 >= 10;
+"foobar";
+"foo bar";
 "#;
 
         let tests = vec![
@@ -267,6 +291,10 @@ if (5 < 10) {
             Token::Int(10),
             Token::GreaterThanEqual,
             Token::Int(10),
+            Token::Semicolon,
+            Token::String(String::from("foobar")),
+            Token::Semicolon,
+            Token::String(String::from("foo bar")),
             Token::Semicolon,
             Token::Eof,
         ];

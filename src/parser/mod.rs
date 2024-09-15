@@ -217,6 +217,7 @@ impl<'a> Parser<'a> {
         let mut left = match self.current_token {
             Token::Ident(_) => self.parse_ident_expr(),
             Token::Int(_) => self.parse_int_expr(),
+            Token::String(_) => self.parse_string_expr(),
             Token::Bool(_) => self.parse_bool_expr(),
             Token::Bang | Token::Minus => self.parse_prefix_expr(),
             Token::Lparen => self.parse_grouped_expr(),
@@ -271,7 +272,14 @@ impl<'a> Parser<'a> {
 
     fn parse_int_expr(&mut self) -> Option<Expr> {
         match self.current_token {
-            Token::Int(ref mut int) => Some(Expr::Literal(Literal::Int(int.clone()))), // FIXME Is `.clone()` correct?
+            Token::Int(ref mut int) => Some(Expr::Literal(Literal::Int(int.clone()))),
+            _ => None,
+        }
+    }
+
+    fn parse_string_expr(&mut self) -> Option<Expr> {
+        match self.current_token {
+            Token::String(ref mut s) => Some(Expr::Literal(Literal::String(s.clone()))),
             _ => None,
         }
     }
